@@ -86,3 +86,9 @@ cloudformation_stacks: []
 #    tags:
 #      tag1: val1
 #      tag2: val2
+
+
+# Use changesets
+create_changeset: True
+execute_changeset: False
+changeset_name: "Ansible"

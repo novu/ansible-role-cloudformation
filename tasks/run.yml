@@ -70,7 +70,8 @@
     stack_name: "{{ cloudformation.stack_name }}"
     state: present
     template: "{{ cloudformation_build_dir_path }}/{{ cloudformation_file_name }}"
-
+    create_changeset: "{{ cloudformation.create_changeset | default(create_changeset) }}"
+    changeset_name: "{{ cloudformation.changeset_name | default(changeset_name) }}"
     aws_access_key: "{{ cloudformation.aws_access_key | default(cloudformation_defaults.aws_access_key | default(omit)) }}"
     aws_secret_key: "{{ cloudformation.aws_secret_key | default(cloudformation_defaults.aws_secret_key | default(omit)) }}"
     security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
@@ -80,3 +81,25 @@
     template_parameters: "{{ cloudformation.template_parameters | default(omit) }}"
     tags: "{{ cloudformation.tags | default(omit) }}"
   when: not cloudformation_generate_only
+  register: stack_output
+
+- name: stack output
+  debug: msg="{{ stack_output.meta|default(stack_output.output) }}"
+
+- name: get changeset description
+  command: aws cloudformation describe-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  changed_when: False
+  register: changeset_state
+  failed_when: changeset_state.rc != 0 and 'ChangeSetNotFound' not in changeset_state.stderr
+  check_mode: False
+  when: not cloudformation_generate_only
+
+- name: changeset description
+  debug: msg="{{ changeset_state.stdout|from_json }}"
+  check_mode: False
+  when: not (changeset_state.failed or changeset_state.stdout == "")
+
+- name: execute changeset
+  command: aws cloudformation execute-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  when: ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
+        and not (changeset_state.failed or changeset_state.stdout == "")
