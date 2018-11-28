@@ -85,6 +85,7 @@
 
 - name: stack output
   debug: msg="{{ stack_output.meta|default(stack_output.output) }}"
+  when: not cloudformation_generate_only
 
 - name: get changeset description
   command: aws cloudformation describe-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
@@ -97,9 +98,11 @@
 - name: changeset description
   debug: msg="{{ changeset_state.stdout|from_json }}"
   check_mode: False
-  when: not (changeset_state.failed or changeset_state.stdout == "")
+  when: not cloudformation_generate_only
+        and not (changeset_state.failed or changeset_state.stdout == "")
 
 - name: execute changeset
   command: aws cloudformation execute-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
-  when: ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
+  when: not cloudformation_generate_only
+        and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
         and not (changeset_state.failed or changeset_state.stdout == "")
