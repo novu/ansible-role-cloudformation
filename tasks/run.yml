@@ -103,6 +103,11 @@
 
 - name: execute changeset
   command: aws cloudformation execute-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  register: chg_output
   when: not cloudformation_generate_only
         and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
         and not (changeset_state.failed or changeset_state.stdout == "")
+
+- name: ensure stack state after changeset
+  command: aws cloudformation wait stack-update-complete --stack-name "{{ cloudformation.stack_name }}"
+  when: chg_output.changed
