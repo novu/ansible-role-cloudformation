@@ -91,7 +91,8 @@
   command: aws cloudformation describe-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
   changed_when: False
   register: changeset_state
-  failed_when: changeset_state.rc != 0 and 'ChangeSetNotFound' not in changeset_state.stderr
+  failed_when: changeset_state.rc != 0
+               and not (('ChangeSetNotFound' in changeset_state.stderr) or ('does not exist' in changeset_state.stderr))
   check_mode: False
   when: not cloudformation_generate_only
 
