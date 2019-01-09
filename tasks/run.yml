@@ -71,6 +71,7 @@
     state: present
     template: "{{ cloudformation_build_dir_path }}/{{ cloudformation_file_name }}"
     create_changeset: "{{ cloudformation.create_changeset | default(create_changeset) }}"
+    disable_rollback: "{{ cloudformation.disable_rollback | default(disable_rollback) }}"
     changeset_name: "{{ cloudformation.changeset_name | default(changeset_name) }}"
     aws_access_key: "{{ cloudformation.aws_access_key | default(cloudformation_defaults.aws_access_key | default(omit)) }}"
     aws_secret_key: "{{ cloudformation.aws_secret_key | default(cloudformation_defaults.aws_secret_key | default(omit)) }}"

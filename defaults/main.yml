@@ -92,3 +92,6 @@ cloudformation_stacks: []
 create_changeset: True
 execute_changeset: False
 changeset_name: "Ansible"
+
+# Default to rollback off
+disable_rollback: True
