@@ -26,7 +26,6 @@ galaxy_info:
         - raring
         - saucy
   galaxy_tags:
-    - AWS
     - aws
     - amazon
     - cloudformation

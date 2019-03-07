@@ -100,7 +100,10 @@
 ###
 
 - name: get changeset description
-  command: aws cloudformation describe-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  command: >
+    aws cloudformation describe-change-set
+      --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
+      --stack-name "{{ cloudformation.stack_name }}"
   changed_when: False
   register: changeset_state
   failed_when: changeset_state.rc != 0
@@ -112,17 +115,23 @@
 ### Execute changeset, maybe wait
 ###
 - name: execute changeset
-  command: aws cloudformation execute-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  command: >
+    aws cloudformation execute-change-set
+      --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
+      --stack-name "{{ cloudformation.stack_name }}"
   register: chg_output
   when: not cloudformation_generate_only
         and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
         and ((cloudformation.create_changeset is defined and cloudformation.create_changeset|bool) or create_changeset)
-        and not (changeset_state.failed or changeset_state.stdout == "")
+        and not (changeset_state.failed or (changeset_state.stdout| length == 0))
 
 
 
 - name: ensure stack state after changeset
-  command: aws cloudformation wait "{{ cloudformation.state|default('stack-update-complete') }}" --stack-name "{{ cloudformation.stack_name }}"
+  command: >
+    aws cloudformation wait
+       "{{ cloudformation.state|default('stack-update-complete') }}"
+       --stack-name "{{ cloudformation.stack_name }}"
   when: chg_output.changed
 
 
