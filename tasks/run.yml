@@ -10,6 +10,17 @@
 
 
 ###
+### Maybe publish to parameter store, for great good
+###
+- name: publish vars to ssm
+  aws_ssm_parameter_store:
+    name: "{{ ssm_prefix }}/{{ item }}"
+    value: "{{ lookup('vars', item) }}"
+  with_items: "{{ cloudformation.ssm_vars }}"
+  when: cloudformation.ssm_prefix is defined
+        and cloudformation.ssm_vars is defined
+
+###
 ### Render cloudformation jinja2 template into the build directory
 ###
 - name: ensure cloudformation template is rendered
@@ -68,7 +79,7 @@
 - name: ensure cloudformation stack is present
   cloudformation:
     stack_name: "{{ cloudformation.stack_name }}"
-    state: present
+    state: "{{ cloudformation.state | default(omit) }}"
     template: "{{ cloudformation_build_dir_path }}/{{ cloudformation_file_name }}"
     create_changeset: "{{ cloudformation.create_changeset | default(create_changeset) }}"
     disable_rollback: "{{ cloudformation.disable_rollback | default(disable_rollback) }}"
@@ -84,12 +95,15 @@
   when: not cloudformation_generate_only
   register: stack_output
 
-- name: stack output
-  debug: msg="{{ stack_output.meta|default(stack_output.output) }}"
-  when: not cloudformation_generate_only
+###
+### check changeset
+###
 
 - name: get changeset description
-  command: aws cloudformation describe-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  command: >
+    aws cloudformation describe-change-set
+      --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
+      --stack-name "{{ cloudformation.stack_name }}"
   changed_when: False
   register: changeset_state
   failed_when: changeset_state.rc != 0
@@ -97,19 +111,103 @@
   check_mode: False
   when: not cloudformation_generate_only
 
-- name: changeset description
-  debug: msg="{{ changeset_state.stdout|from_json }}"
-  check_mode: False
-  when: not cloudformation_generate_only
-        and not (changeset_state.failed or changeset_state.stdout == "")
-
+###
+### Execute changeset, maybe wait
+###
 - name: execute changeset
-  command: aws cloudformation execute-change-set --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}" --stack-name "{{ cloudformation.stack_name }}"
+  command: >
+    aws cloudformation execute-change-set
+      --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
+      --stack-name "{{ cloudformation.stack_name }}"
   register: chg_output
   when: not cloudformation_generate_only
         and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
-        and not (changeset_state.failed or changeset_state.stdout == "")
+        and ((cloudformation.create_changeset is defined and cloudformation.create_changeset|bool) or create_changeset)
+        and not (changeset_state.failed or (changeset_state.stdout| length == 0))
+
+
 
 - name: ensure stack state after changeset
-  command: aws cloudformation wait stack-update-complete --stack-name "{{ cloudformation.stack_name }}"
+  command: >
+    aws cloudformation wait
+       "{{ cloudformation.state|default('stack-update-complete') }}"
+       --stack-name "{{ cloudformation.stack_name }}"
   when: chg_output.changed
+
+
+###
+### Stack facts
+###
+- name: stack facts
+  cloudformation_facts:
+    stack_name: "{{ cloudformation.stack_name }}"
+    aws_access_key: "{{ cloudformation.aws_access_key | default(cloudformation_defaults.aws_access_key | default(omit)) }}"
+    aws_secret_key: "{{ cloudformation.aws_secret_key | default(cloudformation_defaults.aws_secret_key | default(omit)) }}"
+    security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
+    profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
+    region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
+    all_facts: true
+  when: not cloudformation_generate_only
+        and cloudformation.gather_stack_facts|default(False)
+  register: stack_facts
+  check_mode: False
+
+
+###
+### Publish stack facts to parameter store
+###
+- name: publish stack parameters to parameter store
+  aws_ssm_parameter_store:
+    aws_access_key: "{{ cloudformation.aws_access_key | default(cloudformation_defaults.aws_access_key | default(omit)) }}"
+    aws_secret_key: "{{ cloudformation.aws_secret_key | default(cloudformation_defaults.aws_secret_key | default(omit)) }}"
+    security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
+    profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
+    region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
+    name: "{{ cloudformation.ssm_prefix }}/{{ cloudformation.stack_name }}/stack_parameters/{{ my_item.key }}"
+    value: "{{ my_item.value }}"
+    state: "{{ sstate | default(omit) }}"
+  with_dict: "{{ stack_facts['ansible_facts']['cloudformation'][cloudformation.stack_name]['stack_parameters'] }}"
+  when: not cloudformation_generate_only
+        and cloudformation.gather_stack_facts|default(False)
+        and cloudformation.publish_stack_parameters|default(False)
+        and cloudformation.ssm_prefix is defined
+  loop_control:
+    loop_var: my_item
+
+
+- name: publish stack outputs to parameter store
+  aws_ssm_parameter_store:
+    aws_access_key: "{{ cloudformation.aws_access_key | default(cloudformation_defaults.aws_access_key | default(omit)) }}"
+    aws_secret_key: "{{ cloudformation.aws_secret_key | default(cloudformation_defaults.aws_secret_key | default(omit)) }}"
+    security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
+    profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
+    region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
+    name: "{{ cloudformation.ssm_prefix }}/{{ cloudformation.stack_name }}/stack_outputs/{{ my_item.key }}"
+    value: "{{ my_item.value }}"
+    state: "{{ sstate | default(omit) }}"
+  with_dict: "{{ stack_facts['ansible_facts']['cloudformation'][cloudformation.stack_name]['stack_outputs'] }}"
+  when: not cloudformation_generate_only
+        and cloudformation.gather_stack_facts|default(False)
+        and cloudformation.publish_stack_outputs|default(False)
+        and cloudformation.ssm_prefix is defined
+  loop_control:
+    loop_var: my_item
+
+
+- name: publish stack resources to parameter store
+  aws_ssm_parameter_store:
+    aws_access_key: "{{ cloudformation.aws_access_key | default(cloudformation_defaults.aws_access_key | default(omit)) }}"
+    aws_secret_key: "{{ cloudformation.aws_secret_key | default(cloudformation_defaults.aws_secret_key | default(omit)) }}"
+    security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
+    profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
+    region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
+    name: "{{ cloudformation.ssm_prefix }}/{{ cloudformation.stack_name }}/stack_resources/{{ my_item.key }}"
+    value: "{{ my_item.value }}"
+    state: "{{ sstate | default(omit) }}"
+  with_dict: "{{ stack_facts['ansible_facts']['cloudformation'][cloudformation.stack_name]['stack_resources'] }}"
+  when: not cloudformation_generate_only
+        and cloudformation.gather_stack_facts|default(False)
+        and cloudformation.publish_stack_resources|default(False)
+        and cloudformation.ssm_prefix is defined
+  loop_control:
+    loop_var: my_item
