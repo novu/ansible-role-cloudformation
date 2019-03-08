@@ -104,6 +104,10 @@ This section contains a more detailed describtion about available dict or array 
 | `publish_stack_parameters` | bool | optional | publish stack parameters to ssm (under ssm_prefix) |
 | `publish_stack_resources` | bool | optional | publish stack resources to ssm (under ssm_prefix) |
 | `publish_stack_outputs` | bool | optional | publish stack outputs to ssm (under ssm_prefix) |
+| `create_changeset` | bool | optional | Overrides default(True) attempt to use changesets |
+| `changeset_name` | string | optional | Overrides default('Ansible') name to use for changesets |
+| `disable_rollback` | bool | optional | Overrides default(True) when cf error rollback stack |
+
 
 ### Examples
 
