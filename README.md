@@ -98,6 +98,12 @@ This section contains a more detailed describtion about available dict or array 
 | `region` | string | optional | AWS region to deploy stack to (overwrites default) |
 | `template_parameters` | dict | optional | Required cloudformation stack parameters |
 | `tags` | dict | optional | Tags associated with the cloudformation stack |
+| `ssm_prefix` | string | optional | prefix to use for ssm parameters |
+| `ssm_vars` | list | optional | variables to publish to ssm (under ssm_prefix) |
+| `gather_stack_facts` | bool | optional | gather facts about the stack |
+| `publish_stack_parameters` | bool | optional | publish stack parameters to ssm (under ssm_prefix) |
+| `publish_stack_resources` | bool | optional | publish stack resources to ssm (under ssm_prefix) |
+| `publish_stack_outputs` | bool | optional | publish stack outputs to ssm (under ssm_prefix) |
 
 ### Examples
 
@@ -118,6 +124,9 @@ cloudformation_stacks:
   - stack_name: stack-s3
     template: files/cloudformation/s3.yml.j2
     profile: production
+    ssm_vars:
+      - my-bucket
+    ssm_prefix: dearliza
     template_parameters:
       bucketName: my-bucket
     tags:
