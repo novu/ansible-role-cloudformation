@@ -485,7 +485,7 @@ def main():
 
     # Get local data
     with open(module.params.get('template'), "rt") as f:
-        local_template = f.read().decode("UTF-8")
+        local_template = f.read()
 
     # Ignore final newline?
     #
