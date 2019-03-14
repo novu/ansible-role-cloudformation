@@ -16,6 +16,7 @@
   aws_ssm_parameter_store:
     name: "{{ ssm_prefix }}/{{ item }}"
     value: "{{ lookup('vars', item) }}"
+    profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
   with_items: "{{ cloudformation.ssm_vars }}"
   when: cloudformation.ssm_prefix is defined
         and cloudformation.ssm_vars is defined
@@ -104,6 +105,7 @@
     aws cloudformation describe-change-set
       --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
       --stack-name "{{ cloudformation.stack_name }}"
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined else '' }}
   changed_when: False
   register: changeset_state
   failed_when: changeset_state.rc != 0
@@ -119,6 +121,7 @@
     aws cloudformation execute-change-set
       --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
       --stack-name "{{ cloudformation.stack_name }}"
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined else '' }}
   register: chg_output
   when: not cloudformation_generate_only
         and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
@@ -132,6 +135,7 @@
     aws cloudformation wait
        "{{ cloudformation.state|default('stack-update-complete') }}"
        --stack-name "{{ cloudformation.stack_name }}"
+       {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined else '' }}
   when: chg_output.changed
 
 
