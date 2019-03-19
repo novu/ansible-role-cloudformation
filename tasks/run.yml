@@ -105,7 +105,7 @@
     aws cloudformation describe-change-set
       --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
       --stack-name "{{ cloudformation.stack_name }}"
-      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined else '' }}
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
   changed_when: False
   register: changeset_state
   failed_when: changeset_state.rc != 0
@@ -121,7 +121,7 @@
     aws cloudformation execute-change-set
       --change-set-name "{{ cloudformation.changeset_name | default(changeset_name) }}"
       --stack-name "{{ cloudformation.stack_name }}"
-      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined else '' }}
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
   register: chg_output
   when: not cloudformation_generate_only
         and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
@@ -133,9 +133,9 @@
 - name: ensure stack state after changeset
   command: >
     aws cloudformation wait
-       "{{ cloudformation.state|default('stack-update-complete') }}"
-       --stack-name "{{ cloudformation.stack_name }}"
-       {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined else '' }}
+      "{{ cloudformation.state|default('stack-update-complete') }}"
+      --stack-name "{{ cloudformation.stack_name }}"
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
   when: chg_output.changed
 
 
