@@ -14,12 +14,29 @@
 ###
 - name: publish vars to ssm
   aws_ssm_parameter_store:
-    name: "{{ ssm_prefix }}/{{ item }}"
-    value: "{{ lookup('vars', item) }}"
+    name: "{{ cloudformation.ssm_prefix }}/{{ my_item }}"
+    value: "{{ lookup('vars', my_item) }}"
     profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
   with_items: "{{ cloudformation.ssm_vars }}"
   when: cloudformation.ssm_prefix is defined
         and cloudformation.ssm_vars is defined
+  loop_control:
+    loop_var: my_item
+
+- name: publish secret vars to ssm
+  aws_ssm_parameter_store:
+    name: "{{ cloudformation.ssm_prefix }}/{{ my_item }}"
+    string_type: "SecureString"
+    key_id: "{{ cloudformation.ssm_kms_key_id }}"
+    value: "{{ lookup('vars', my_item) }}"
+    profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
+  with_items: "{{ cloudformation.ssm_secret_vars }}"
+  no_log: true
+  when: cloudformation.ssm_prefix is defined
+        and cloudformation.ssm_secret_vars is defined
+        and cloudformation.ssm_kms_key_id is defined
+  loop_control:
+    loop_var: my_item
 
 ###
 ### Render cloudformation jinja2 template into the build directory
@@ -138,7 +155,6 @@
       {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
   when: chg_output.changed
 
-
 ###
 ### Stack facts
 ###
@@ -215,3 +231,50 @@
         and cloudformation.ssm_prefix is defined
   loop_control:
     loop_var: my_item
+
+###
+### Detect Drift
+###
+- name: detect stack drift
+  command: >
+    aws cloudformation detect-stack-drift
+      --stack-name "{{ cloudformation.stack_name }}"
+      --query="StackDriftDetectionId"
+      --output=text
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
+  when: detect_drift|bool or cloudformation.detect_drift|default(False)
+  failed_when: drift_output.rc != 0
+               and not ('does not exist' in drift_output.stderr)
+  check_mode: False
+  changed_when: false
+  register: drift_output
+
+- name: wait for drift detection to finish
+  command: >
+    aws cloudformation describe-stack-drift-detection-status
+      --stack-drift-detection-id="{{ drift_output.stdout }}"
+      --query="DetectionStatus"
+      --output=text
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
+  changed_when: false
+  register: drift_status
+  retries: 10
+  delay: 15
+  until: drift_status.stdout != "DETECTION_IN_PROGRESS"
+  when: (detect_drift|bool or cloudformation.detect_drift|default(False))
+        and drift_output.rc == 0
+  check_mode: False
+
+- name: stack drift status
+  command: >
+    aws cloudformation describe-stack-drift-detection-status
+      --stack-drift-detection-id="{{ drift_output.stdout }}"
+      --query="StackDriftStatus"
+      --output=text
+      {{ ('--profile ' + cloudformation.profile) if cloudformation.profile is defined and cloudformation.profile|length !=0  else '' }}
+  register: drift_status
+  changed_when: false
+  failed_when: drift_status.stdout != "IN_SYNC"
+  when: (detect_drift|bool or cloudformation.detect_drift|default(False))
+        and drift_output.rc == 0
+  check_mode: False
