@@ -93,9 +93,9 @@
     security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
     profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
     region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
-    when: not cloudformation_generate_only
-          and cloudformation_run_diff
-          and not cloudformation_describe_only
+  when: not cloudformation_generate_only
+        and cloudformation_run_diff
+        and not cloudformation_describe_only
   check_mode: False
 
 ###
