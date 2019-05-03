@@ -11,6 +11,10 @@ cloudformation_clean_build_env: False
 # $ ansible-playbook play.yml -e cloudformation_generate_only=yes
 cloudformation_generate_only: False
 
+# Overwrite this variable via command line to only describe generated changesets
+# Used in jenkins based deployments as to display proposed changes before they are approved
+# $ ansible-playbook play.yml -e cloudformation_describe_only=yes
+cloudformation_describe_only: False
 
 # This role ships a custom Ansible Cloudformation module:
 # cloudformation_diff.py - https://github.com/cytopia/ansible-modules

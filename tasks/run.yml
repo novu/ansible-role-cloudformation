@@ -7,6 +7,7 @@
   set_fact:
     cloudformation_file_name: "{{ cloudformation.template | basename }}-{{ cloudformation.stack_name }}.yml"
   check_mode: False
+  when: not cloudformation_describe_only
 
 
 ###
@@ -20,6 +21,7 @@
   with_items: "{{ cloudformation.ssm_vars }}"
   when: cloudformation.ssm_prefix is defined
         and cloudformation.ssm_vars is defined
+        and not cloudformation_describe_only
   loop_control:
     loop_var: my_item
 
@@ -35,6 +37,7 @@
   when: cloudformation.ssm_prefix is defined
         and cloudformation.ssm_secret_vars is defined
         and cloudformation.ssm_kms_key_id is defined
+        and not cloudformation_describe_only
   loop_control:
     loop_var: my_item
 
@@ -48,6 +51,7 @@
     mode: 0644
     force: True
   changed_when: False
+  when: not cloudformation_describe_only
   check_mode: False
 
 
@@ -69,7 +73,9 @@
     security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
     profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
     region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
-  when: not cloudformation_generate_only and cloudformation_run_diff
+  when: not cloudformation_generate_only
+        and cloudformation_run_diff
+        and not cloudformation_describe_only
   check_mode: False
 
 - name: diff cloudformation template file
@@ -87,7 +93,9 @@
     security_token: "{{ cloudformation.security_token | default(cloudformation_defaults.security_token | default(omit)) }}"
     profile: "{{ cloudformation.profile | default(cloudformation_defaults.profile | default(omit)) }}"
     region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
-  when: not cloudformation_generate_only and cloudformation_run_diff
+    when: not cloudformation_generate_only
+          and cloudformation_run_diff
+          and not cloudformation_describe_only
   check_mode: False
 
 ###
@@ -96,6 +104,7 @@
 - name: detect drift ( pre )
   include_tasks: drift.yml
   when: pre_detect_drift|bool or cloudformation.pre_detect_drift|default(False)
+        and not cloudformation_describe_only
 
 ###
 ### Run rendered cloudformation template
@@ -117,6 +126,7 @@
     template_parameters: "{{ cloudformation.template_parameters | default(omit) }}"
     tags: "{{ cloudformation.tags | default(omit) }}"
   when: not cloudformation_generate_only
+        and not cloudformation_describe_only
   register: stack_output
 
 ###
@@ -150,6 +160,7 @@
         and ((cloudformation.execute_changeset is defined and cloudformation.execute_changeset|bool) or execute_changeset)
         and ((cloudformation.create_changeset is defined and cloudformation.create_changeset|bool) or create_changeset)
         and not (changeset_state.failed or (changeset_state.stdout| length == 0))
+        and not cloudformation_describe_only
 
 
 
@@ -175,6 +186,7 @@
     all_facts: true
   when: not cloudformation_generate_only
         and cloudformation.gather_stack_facts|default(False)
+        and not cloudformation_describe_only
   register: stack_facts
   check_mode: False
 
@@ -197,6 +209,7 @@
         and cloudformation.gather_stack_facts|default(False)
         and cloudformation.publish_stack_parameters|default(False)
         and cloudformation.ssm_prefix is defined
+        and not cloudformation_describe_only
   loop_control:
     loop_var: my_item
 
@@ -216,6 +229,7 @@
         and cloudformation.gather_stack_facts|default(False)
         and cloudformation.publish_stack_outputs|default(False)
         and cloudformation.ssm_prefix is defined
+        and not cloudformation_describe_only
   loop_control:
     loop_var: my_item
 
@@ -235,6 +249,7 @@
         and cloudformation.gather_stack_facts|default(False)
         and cloudformation.publish_stack_resources|default(False)
         and cloudformation.ssm_prefix is defined
+        and not cloudformation_describe_only
   loop_control:
     loop_var: my_item
 
@@ -244,3 +259,4 @@
 - name: detect drift ( post )
   include_tasks: drift.yml
   when: detect_drift|bool or cloudformation.detect_drift|default(False)
+        and not cloudformation_describe_only
