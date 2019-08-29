@@ -124,10 +124,23 @@
     region: "{{ cloudformation.region | default(cloudformation_defaults.region | default(omit)) }}"
     notification_arns: "{{ cloudformation.notification_arns | default(cloudformation_defaults.notification_arns | default(omit)) }}"
     template_parameters: "{{ cloudformation.template_parameters | default(omit) }}"
+    termination_protection: "{{ cloudformation.termination_protection | default(False) }}"
     tags: "{{ cloudformation.tags | default(omit) }}"
   when: not cloudformation_generate_only
         and not cloudformation_describe_only
   register: stack_output
+
+###
+### Update Termination Protection
+###
+
+- name: update termination protection
+  command: >
+    aws cloudformation update-termination-protection
+      --stack-name "{{ cloudformation.stack_name }}"
+      {{ '--enable-termination-protection' if (cloudformation.termination_protection | default(False)) else '--no-enable-termination-protection' }}
+  when: not cloudformation_generate_only
+        and not cloudformation_describe_only
 
 ###
 ### check changeset
