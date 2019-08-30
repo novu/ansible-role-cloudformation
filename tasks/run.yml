@@ -175,8 +175,6 @@
         and not (changeset_state.failed or (changeset_state.stdout| length == 0))
         and not cloudformation_describe_only
 
-
-
 - name: ensure stack state after changeset
   command: >
     aws cloudformation wait

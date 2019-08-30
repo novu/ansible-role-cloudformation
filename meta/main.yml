@@ -9,7 +9,7 @@ galaxy_info:
   platforms:
     - name: Amazon
       versions:
-       - all
+        - all
     - name: EL
       versions:
         - 5
