@@ -113,6 +113,7 @@ This section contains a more detailed describtion about available dict or array 
 | `detect_drift` | bool | optional | Detect if stack has drifted after executing actions. (overwrites default) |
 | `ssm_secret_vars` | list | optional | variables to publish to ssm as secrets (under ssm_prefix) |
 | `ssm_kms_key_id` | string | optional | required if ssm_secret_vars is set, kms key to use with secure string |
+| `termination_protection` | bool | optional | Enable termination protection on the stack. False by default |
 
 
 ### Examples
